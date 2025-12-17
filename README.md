@@ -27,6 +27,7 @@
 slider_trajectory_gen/
 ├── llm_generator.py          # 轨迹生成器（推理）
 ├── train_lora.py              # LoRA 微调脚本
+├── download_model.py          # 模型自动下载脚本
 ├── training_data.jsonl        # 训练数据集
 ├── requirements.txt           # Python 依赖
 ├── models/                    # 模型保存目录
@@ -58,7 +59,44 @@ cd slider_trajectory_gen
 pip install -r requirements.txt
 ```
 
-### 3. （可选）准备训练数据
+### 3. 下载预训练模型
+
+你可以从 GitHub Releases 下载已经训练好的模型，无需重新训练。
+
+#### 方式一：自动下载（推荐）
+
+运行自动下载脚本：
+
+```bash
+python download_model.py
+```
+
+脚本会自动：
+- 获取最新版本的模型
+- 下载并显示进度
+- 自动解压到正确的目录
+- 验证安装是否成功
+
+#### 方式二：手动下载
+
+1. 访问 [Releases 页面](https://github.com/wilinz/slider_captcha_trajectory_gen/releases)
+2. 下载最新版本的模型文件（通常是 `final_model.zip` 或类似名称）
+3. 解压到项目的 `models` 目录下
+
+解压后的目录结构应该是：
+```
+slider_trajectory_gen/
+└── models/
+    └── final_model/
+        ├── adapter_config.json
+        ├── adapter_model.safetensors
+        ├── tokenizer_config.json
+        └── ...
+```
+
+> 💡 **提示**: 下载预训练模型后可以直接使用，跳过训练步骤。
+
+### 4. （可选）准备训练数据
 
 如果需要重新训练模型，请准备 `training_data.jsonl` 文件，格式如下：
 
