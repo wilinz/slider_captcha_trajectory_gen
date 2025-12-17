@@ -249,10 +249,10 @@ python llm_generator.py
 
 ### LLMTrajectoryGenerator.generate()
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `target_distance` | int | - | 目标距离（必需），滑块需要移动的像素数 |
-| `canvas_length` | int | 280 | 画布长度 |
+| 参数 | 类型 | 默认值 | 说明                           |
+|------|------|--------|------------------------------|
+| `target_distance` | int | - | 目标距离（必需），滑块需要移动的距离，基于画布长度    |
+| `canvas_length` | int | 280 | 画布长度                         |
 | `temperature` | float | 0.8 | 采样温度，范围 0.0-1.0。值越高生成结果越随机多样 |
 | `top_p` | float | 0.95 | Nucleus sampling 参数，控制采样的多样性 |
 
