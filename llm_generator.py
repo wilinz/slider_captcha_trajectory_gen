@@ -42,7 +42,7 @@ class LLMTrajectoryGenerator:
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_path,
             device_map=device,
-            torch_dtype=torch.float16 if device in ["cuda", "mps"] else torch.float32,
+            dtype=torch.float16 if device in ["cuda", "mps"] else torch.float32,
             trust_remote_code=True  # Qwen需要信任远程代码
         )
         self.model.eval()

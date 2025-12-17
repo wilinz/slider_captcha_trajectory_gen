@@ -60,7 +60,7 @@ def main():
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_NAME,
         device_map="auto",
-        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+        dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
         trust_remote_code=True  # Qwen需要信任远程代码
     )
     print(f"✅ Model loaded on device: {model.device}")
