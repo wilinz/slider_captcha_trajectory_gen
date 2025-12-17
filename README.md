@@ -1,4 +1,4 @@
-# 滑块验证码轨迹生成器 (Slider Trajectory Generator)
+# 滑块验证码轨迹生成器 (Slider Captcha Trajectory Generator)
 
 基于 LLM（Qwen2.5-0.5B）微调的滑块验证码轨迹生成工具。通过深度学习模型生成符合人类行为特征的滑块移动轨迹。
 
@@ -24,7 +24,7 @@
 ## 📋 项目结构
 
 ```
-slider_trajectory_gen/
+slider_captcha_trajectory_gen/
 ├── llm_generator.py          # 轨迹生成器（推理）
 ├── train_lora.py              # LoRA 微调脚本
 ├── download_model.py          # 模型自动下载脚本
@@ -50,7 +50,7 @@ slider_trajectory_gen/
 
 ```bash
 git clone <repository-url>
-cd slider_trajectory_gen
+cd slider_captcha_trajectory_gen
 ```
 
 ### 2. 安装依赖
