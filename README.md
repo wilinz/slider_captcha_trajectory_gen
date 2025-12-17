@@ -25,16 +25,29 @@
 
 ```
 slider_captcha_trajectory_gen/
-├── llm_generator.py          # 轨迹生成器（推理）
+├── llm_generator.py           # 轨迹生成器（推理）
 ├── train_lora.py              # LoRA 微调脚本
 ├── download_model.py          # 模型自动下载脚本
-├── training_data.jsonl        # 训练数据集
+├── convert_to_jsonl.py        # 数据转换脚本
+├── training_data.jsonl        # 训练数据集（JSONL格式）
 ├── requirements.txt           # Python 依赖
 ├── models/                    # 模型保存目录
 │   └── final_model/          # 微调后的最终模型
 ├── tools/                     # 工具集
 │   └── slider-tool.html      # 可视化测试工具
-└── img/                       # 示例图片
+├── img/                       # 示例图片
+└── captcha_annotator_flutter/ # Flutter 标注工具
+    ├── lib/                  # 标注工具源码
+    ├── V2_DATASET_ANNOTATION.md  # V2标注指南
+    └── ...
+
+captcha_dataset/               # 验证码数据集（父级目录）
+├── images/                    # 验证码图片
+│   ├── {id}_big.png          # 背景大图
+│   └── {id}_small.png        # 滑块小图
+└── metadata/                  # 标注数据（JSON格式）
+    └── {id}.json             # 基本信息文件（数据收集工具创建）
+                               # 标注后会自动添加 tracks 字段
 ```
 
 ## 🔧 环境要求
@@ -104,6 +117,43 @@ slider_trajectory_gen/
 {"text": "<|input|>distance:60,canvas:280<|output|>0,0,0;5,-2,30;12,-3,28;...<|end|>"}
 {"text": "<|input|>distance:120,canvas:280<|output|>0,0,0;8,-1,25;15,-2,32;...<|end|>"}
 ```
+
+## 📝 数据标注与处理
+
+如果需要自己创建训练数据集，项目提供了 Flutter 标注工具。
+
+> 💡 **重要提示**：建议使用 **V1 标注器**（符合真实验证码逻辑），V2 为实验工具。
+
+**标注工具基于 Flutter 3.35.0 开发，建议使用 `fvm` 管理 Flutter 版本**。
+
+> 📖 **参考**: [fvm 安装向导](https://fvm.app/documentation/getting-started/installation)
+
+### 快速开始
+
+```bash
+# 1. 准备数据集目录
+mkdir -p captcha_dataset/images
+mkdir -p captcha_dataset/metadata
+
+# 2. 将验证码图片放入 images 目录
+#    命名格式: {id}_big.png, {id}_small.png
+
+# 3. 运行标注工具
+cd captcha_annotator_flutter
+flutter pub get
+flutter run
+
+# 4. 转换为训练数据
+python convert_to_jsonl.py \
+    --input_dir captcha_dataset/metadata \
+    --output_file training_data.jsonl
+```
+
+### 详细文档
+
+完整的数据标注指南请参考：
+
+📖 **[数据标注与处理指南](DATA_ANNOTATION.md)** - 包含详细的标注流程、数据格式说明、质量控制技巧等
 
 ## 🚀 使用方法
 
