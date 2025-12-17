@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>轨迹数据可视化对比分析工具</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 { font-size: 24px; color: #1f2937; margin-bottom: 8px; }
+        .header p { color: #6b7280; font-size: 14px; }
+
+        /* 核心布局：双栏 */
+        .comparison-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1024px) {
+            .comparison-container { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-top: 4px solid transparent;
+        }
+
+        .panel.left { border-top-color: #3b82f6; }   /* 蓝色主题 */
+        .panel.right { border-top-color: #f97316; }  /* 橙色主题 */
+
+        .panel-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f9fafb;
+        }
+        .panel-title { font-weight: 700; font-size: 16px; }
+        .tag { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+        .tag.blue { background: #dbeafe; color: #1e40af; }
+        .tag.orange { background: #ffedd5; color: #9a3412; }
+
+        .input-area { padding: 20px; }
+        textarea {
+            width: 100%; height: 100px; padding: 10px;
+            border: 1px solid #d1d5db; border-radius: 6px;
+            font-family: 'Monaco', monospace; font-size: 11px;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+        textarea:focus { outline: none; border-color: #3b82f6; ring: 2px; }
+
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px; border: none; border-radius: 6px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-blue { background: #3b82f6; color: white; }
+        .btn-orange { background: #f97316; color: white; }
+        .btn-gray { background: #e5e7eb; color: #374151; }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            padding: 0 20px 20px 20px;
+        }
+        .stat-card {
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-label { font-size: 11px; color: #64748b; margin-bottom: 4px; }
+        .stat-value { font-size: 14px; font-weight: 700; color: #0f172a; font-family: monospace; }
+
+        /* 图表容器 */
+        .charts-container {
+            padding: 20px;
+            background: #fff;
+            flex: 1;
+        }
+        .chart-wrapper {
+            height: 200px;
+            margin-bottom: 20px;
+            border: 1px solid #f1f5f9;
+            border-radius: 8px;
+            padding: 10px;
+            position: relative;
+        }
+        .chart-label {
+            position: absolute;
+            top: 5px; left: 10px;
+            font-size: 12px; font-weight: 600; color: #94a3b8;
+            z-index: 10;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+            font-size: 14px;
+            background: #f9fafb;
+            margin: 20px;
+            border-radius: 8px;
+            border: 1px dashed #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+    const { useState, useRef, useEffect, useMemo } = React;
+
+    // --- 物理计算核心逻辑 ---
+    const processTracks = (tracks) => {
+        if (!tracks || tracks.length === 0) return null;
+
+        // 1. 数据清洗与标准化
+        // 兼容 {x, y, t} 或 {a, b, c} 格式
+        // a/x = moveLength, c/t = time interval
+        let cumulativeTime = 0;
+        const pos = [];
+
+        tracks.forEach(t => {
+            const timeSpan = t.c !== undefined ? t.c : (t.t || 0);
+            const xVal = t.a !== undefined ? t.a : (t.x || 0);
+
+            cumulativeTime += timeSpan;
+            pos.push({ time: cumulativeTime, value: xVal });
+        });
+
+        // 2. 计算速度 (v = dx/dt)
+        const vel = [];
+        for (let i = 1; i < pos.length; i++) {
+            const dt = pos[i].time - pos[i-1].time;
+            const dx = pos[i].value - pos[i-1].value;
+            const v = dt > 0 ? (dx / dt) * 1000 : 0; // px/s
+            vel.push({ time: pos[i].time, value: v });
+        }
+        if (vel.length) vel.unshift({ time: 0, value: 0 });
+
+        // 3. 计算加速度 (a = dv/dt)
+        const acc = [];
+        for (let i = 1; i < vel.length; i++) {
+            const dt = vel[i].time - vel[i-1].time;
+            const dv = vel[i].value - vel[i-1].value;
+            const a = dt > 0 ? (dv / (dt/1000)) : 0; // px/s^2
+            acc.push({ time: vel[i].time, value: a });
+        }
+        if (acc.length) acc.unshift({ time: 0, value: 0 });
+
+        // 4. 统计指标
+        const stats = {
+            totalTime: cumulativeTime,
+            distance: pos.length > 0 ? pos[pos.length - 1].value : 0,
+            maxSpeed: Math.max(...vel.map(d => d.value), 0),
+            avgSpeed: cumulativeTime > 0 ? (pos[pos.length - 1].value / cumulativeTime) * 1000 : 0,
+            maxAcc: Math.max(...acc.map(d => Math.abs(d.value)), 0),
+            points: tracks.length
+        };
+
+        return { posData: pos, velData: vel, accData: acc, stats };
+    };
+
+    // --- EChart 单个图表组件 ---
+    function EChart({ data, title, color, unit, type = 'line', height = 200 }) {
+        const chartRef = useRef(null);
+        const instanceRef = useRef(null);
+
+        useEffect(() => {
+            if (!chartRef.current || !data) return;
+
+            if (!instanceRef.current) {
+                instanceRef.current = echarts.init(chartRef.current);
+            }
+
+            const chartData = data.map(d => [d.time, d.value]);
+
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: (params) => {
+                        const p = params[0];
+                        return `${Math.round(p.value[0])}ms<br/><b>${p.value[1].toFixed(1)}</b> ${unit}`;
+                    }
+                },
+                grid: { top: 30, right: 20, bottom: 20, left: 50, containLabel: false },
+                xAxis: { type: 'value', show: true, splitLine: { show: false } },
+                yAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed' } } },
+                series: [{
+                    type: 'line',
+                    smooth: true,
+                    showSymbol: false,
+                    data: chartData,
+                    itemStyle: { color: color },
+                    areaStyle: type === 'area' ? {
+                        opacity: 0.2,
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: color },
+                            { offset: 1, color: '#fff' }
+                        ])
+                    } : undefined,
+                    markLine: title.includes('加速度') ? {
+                        symbol: 'none',
+                        label: { show: false },
+                        lineStyle: { color: '#ccc', type: 'solid', width: 1 },
+                        data: [{ yAxis: 0 }]
+                    } : undefined
+                }]
+            };
+
+            instanceRef.current.setOption(option);
+
+            const resize = () => instanceRef.current && instanceRef.current.resize();
+            window.addEventListener('resize', resize);
+            return () => window.removeEventListener('resize', resize);
+        }, [data, color, type]);
+
+        return (
+            <div className="chart-wrapper" style={{ height }}>
+                <div className="chart-label">{title} ({unit})</div>
+                <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
+            </div>
+        );
+    }
+
+    // --- 数据面板组件 (可复用) ---
+    function DataPanel({ title, colorTheme, defaultJson = '' }) {
+        const [input, setInput] = useState(defaultJson);
+        const [parsedData, setParsedData] = useState(null);
+        const [error, setError] = useState('');
+
+        const primaryColor = colorTheme === 'blue' ? '#3b82f6' : '#f97316';
+        const secondaryColor = colorTheme === 'blue' ? '#60a5fa' : '#fb923c';
+        const accColor = colorTheme === 'blue' ? '#ef4444' : '#ef4444'; // 加速度统一用红色系或保持区分
+
+        const handleAnalyze = () => {
+            setError('');
+            if (!input.trim()) {
+                setParsedData(null);
+                return;
+            }
+            try {
+                const raw = JSON.parse(input);
+                // 兼容逻辑：输入可能是 { tracks: [...] } 或者 直接是 [...]
+                const tracks = Array.isArray(raw) ? raw : (raw.tracks || raw.trace || []);
+
+                if (!tracks.length) throw new Error("未找到有效的 tracks 数组");
+
+                const result = processTracks(tracks);
+                setParsedData(result);
+            } catch (e) {
+                setError('JSON 解析失败: ' + e.message);
+                setParsedData(null);
+            }
+        };
+
+        // 自动分析（当输入有内容且未分析时，可选，这里采用点击触发避免性能问题）
+        // 如果想粘贴即分析，可以加 useEffect 监听 input debounce
+
+        return (
+            <div className={`panel ${colorTheme === 'blue' ? 'left' : 'right'}`}>
+                <div className="panel-header">
+                    <span className="panel-title">{title}</span>
+                    <span className={`tag ${colorTheme === 'blue' ? 'blue' : 'orange'}`}>
+                            {parsedData ? '已分析' : '等待输入'}
+                        </span>
+                </div>
+
+                <div className="input-area">
+                        <textarea
+                            placeholder='请粘贴 JSON 数据，例如：{"tracks": [{"a":0,"b":0,"c":10}, ...]}'
+                            value={input}
+                            onChange={e => setInput(e.target.value)}
+                        />
+                    <div className="controls">
+                        <button
+                            className={`btn ${colorTheme === 'blue' ? 'btn-blue' : 'btn-orange'}`}
+                            onClick={handleAnalyze}
+                        >
+                            分析可视化
+                        </button>
+                        <button className="btn btn-gray" onClick={() => { setInput(''); setParsedData(null); setError(''); }}>
+                            清空
+                        </button>
+                    </div>
+                    {error && <div style={{color: 'red', fontSize: '12px', marginTop: '5px'}}>{error}</div>}
+                </div>
+
+                {parsedData ? (
+                    <>
+                        <div className="stats-grid">
+                            <div className="stat-card">
+                                <div className="stat-label">总耗时</div>
+                                <div className="stat-value">{parsedData.stats.totalTime} <span style={{fontSize:10, fontWeight:400}}>ms</span></div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-label">移动距离</div>
+                                <div className="stat-value">{parsedData.stats.distance} <span style={{fontSize:10, fontWeight:400}}>px</span></div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-label">平均速度</div>
+                                <div className="stat-value">{Math.round(parsedData.stats.avgSpeed)} <span style={{fontSize:10, fontWeight:400}}>px/s</span></div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-label">最大加速度</div>
+                                <div className="stat-value">{Math.round(parsedData.stats.maxAcc)}</div>
+                            </div>
+                        </div>
+
+                        <div className="charts-container">
+                            <EChart
+                                data={parsedData.posData}
+                                title="位移 (Position)"
+                                unit="px"
+                                color={primaryColor}
+                                type="area"
+                            />
+                            <EChart
+                                data={parsedData.velData}
+                                title="速度 (Velocity)"
+                                unit="px/s"
+                                color={secondaryColor}
+                            />
+                            <EChart
+                                data={parsedData.accData}
+                                title="加速度 (Acceleration)"
+                                unit="px/s²"
+                                color={accColor}
+                            />
+                        </div>
+                    </>
+                ) : (
+                    <div className="empty-state">
+                        暂无数据，请在上方粘贴 JSON 并点击分析
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // --- 主应用 ---
+    function App() {
+        // 示例数据，方便测试
+        const sampleData = JSON.stringify({
+            tracks: [
+                {a:2,b:0,c:20}, {a:5,b:0,c:18}, {a:10,b:1,c:22}, {a:18,b:1,c:19},
+                {a:30,b:2,c:20}, {a:45,b:2,c:21}, {a:60,b:3,c:20}, {a:70,b:3,c:30},
+                {a:75,b:3,c:40}, {a:78,b:3,c:50}
+            ]
+        }, null, 2);
+
+        return (
+            <div>
+                <div className="header">
+                    <h1>📊 轨迹数据可视化对比工作台</h1>
+                    <p>支持粘贴 JSON 结果数据 (包含 tracks/trace) 进行物理特征分析</p>
+                </div>
+
+                <div className="comparison-container">
+                    {/* 左栏：通常用于基准数据或人工数据 */}
+                    <DataPanel
+                        title="数据源 A (基准/人工)"
+                        colorTheme="blue"
+                        defaultJson=""
+                    />
+
+                    {/* 右栏：通常用于测试数据或机器数据 */}
+                    <DataPanel
+                        title="数据源 B (测试/机器)"
+                        colorTheme="orange"
+                        defaultJson=""
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
