@@ -120,6 +120,21 @@ slider_trajectory_gen/
 
 ## 📝 数据标注与处理
 
+### 下载示例数据集
+
+如果想快速开始，可以下载已准备好的数据集：
+
+📦 **[下载数据集 (captcha_dataset.zip)](https://github.com/wilinz/slider_captcha_trajectory_gen/releases/download/v1.0.0/captcha_dataset.zip)**
+
+数据集信息：
+- 📊 总计：5000 条验证码数据
+- ✅ 已标注：1246 条（可直接用于训练），已转换到 training_data.jsonl
+- 📁 包含完整的图片和标注数据
+
+下载后解压到项目目录即可使用。
+
+### 自行标注数据
+
 如果需要自己创建训练数据集，项目提供了 Flutter 标注工具。
 
 > 💡 **重要提示**：建议使用 **V1 标注器**（符合真实验证码逻辑），V2 为实验工具。

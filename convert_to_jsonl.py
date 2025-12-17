@@ -3,7 +3,7 @@
 将标注数据（JSON格式）转换为训练数据（JSONL格式）
 
 使用方法:
-    python convert_to_jsonl.py --input_dir captcha_dataset/metadata --output_file training_data.jsonl
+    python convert_to_jsonl.py --input_dir /Users/wilinz/IdeaProjects/chuanggao-kt/captcha_dataset/metadata --output_file training_data1.jsonl
 
 参数说明:
     --input_dir: 标注数据目录（包含JSON文件）
@@ -261,7 +261,7 @@ def main():
     parser.add_argument(
         '--max_time',
         type=int,
-        default=3000,
+        default=5000,
         help='最大总时长（毫秒），默认3000'
     )
 
